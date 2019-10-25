@@ -1,37 +1,3 @@
-# add a default value that is at least 16 characters
-variable "masterAuthPass" {
-  type = "string"
-}
-
-variable "masterAuthUser" {
-  type = "string"
-}
-
-variable "serviceAccount" {
-  type = "string"
-}
-
-variable "project" {
-  type = "string"
-}
-
-variable "region" {
-  type = "string"
-}
-
-variable "zone" {
-  type = "string"
-}
-
-variable "cluster_name" {
-  type = "string"
-}
-
-variable "node_count" {
-  type = "string"
-  default = "4"
-}
-
 provider "google" {
   # OSS, so use this
   #credentials = "${file("/some/path/to/your/auth.json")}"
@@ -44,17 +10,12 @@ provider "google" {
 
 resource "google_container_cluster" "k8s" {
   name               = "${var.cluster_name}"
-  zone               = "${var.zone}"
-  # we need 4 of these for the demo
-  initial_node_count =  "${var.node_count}"
+  location           = "${var.zone}"
+  
+  initial_node_count = "${var.node_count}"
 
   # this is going to be your project
   project = "${var.project}"
-
-  master_auth {
-    username = "${var.masterAuthUser}"
-    password = "${var.masterAuthPass}"
-  }
 
   node_config {
     oauth_scopes = [
@@ -68,9 +29,28 @@ resource "google_container_cluster" "k8s" {
       env = "sandbox"
     }
 
-    tags = ["k8s", "se-training", "sandbox"]
+    machine_type = "${var.machine_type}"
+    tags = "${var.tags}"
+  }
+
+  master_auth {
+    username = "${var.masterAuthUser}"
+    password = "${var.masterAuthPass}"
   }
 }
+
+resource "google_container_node_pool" "primary_nodes" {
+  name       = "primary-node-pool"
+  location   = "${var.region}"
+  cluster    = "${google_container_cluster.k8s.name}"
+
+  # we need 4 of these for the demo
+  node_count = "${var.node_count}"
+
+  
+
+}
+
 
 # The following outputs allow authentication and connectivity to the GKE Cluster.
 output "client_certificate" {
