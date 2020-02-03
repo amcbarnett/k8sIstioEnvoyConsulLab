@@ -1,6 +1,7 @@
 # add a default value that is at least 16 characters
 variable "masterAuthPass" {
   type = "string"
+  default ="my"
 }
 
 variable "masterAuthUser" {
