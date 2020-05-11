@@ -1,0 +1,13 @@
+# Pod example without Consul
+apiVersion: v1
+kind: Pod
+metadata:
+  name: counting-service-app
+  labels:
+    app: counting-service-app
+spec:
+  containers:
+    - name: counting-service-app
+      image: hashicorp/counting-service:0.0.2
+      ports:
+      - containerPort: 9001
