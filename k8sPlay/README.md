@@ -2,22 +2,17 @@
 
 ## Steps
   - deploy simple resources
-  - leverage k8s system commands to analyze
+  - deploy redis cache node
   - clean up
 
 ### deploy simple resources
- - please make sure you are in the right dir
+ - look at the counting service app deployment definition
  ```bash
- pwd
- ```
- **NOTE**: the output should be /some/crazy/long/thing/k8sPlay
- - look at counting service
- ```bash
- cat yaml-minimal/counting-service.yaml
+ cat yaml-minimal/counting-deployment.yaml
  ```
  - apply counting service via kubectl
  ```bash
- kubectl apply -f yaml-minimal/counting-service.yaml
+ kubectl apply -f yaml-minimal/counting-deployment.yaml
  ```
  - check the log to verify all is well **NOTE**: should see Serving at http://localhost:9001 in the stdout
  ```bash
@@ -32,41 +27,36 @@
  kubectl port-forward pod/counting-minimal-pod 9001:9001
  ```
  - then [look at it](http://localhost:9001)
- - now let's look at the load balancer
+ - now let's look at the node port
  ```bash
- cat yaml-minimal/counting-load-balancer.yaml
+ cat yaml-minimal/counting-node-port.yaml
  ```
  - apply it with kubectl
  ```bash
- kubectl apply -f yaml-minimal/counting-load-balancer.yaml
+ kubectl apply -f yaml-minimal/counting-node-port.yaml
  ```
- - navigate to GCP console where your K8s cluster lives
-  - click on services
-  - gasp...a load balancer is running...click on it's IP address **NOTE**: when available
-  - e-gasp...it's the output from the counting service...wha..?
 
-### leverage k8s system commands to analyze
-  - get pods
-  ```bash
-  kubectl get pods
-  ```
-  - get logs for a pod
-  ```bash
-  kubectl logs <pod name>
-  ```
-  - set output
-  ```bash
-  kubectl get pods --output=json
-  ```
-  - If you've ever used docker, this is very familiar.
-  ```bash
-  kubectl exec -it <pod name> /bin/sh
-  ```
+### deploy Redis cache
+ - look at the Redis cache definition
+ ```bash
+ cat redis-cache/redis.yaml
+ ```
+ - apply counting service via kubectl
+ ```bash
+ kubectl apply -f redis-cache/redis.yaml
+ ```
+
+- inspect the distribution pods
+```bash
+kubectl get pods -l app=redis -o wide
+```
+
+Note that since we have specified 5 replicas of the cache pods, with a podAntiAffinity clause to ensures that a node runs one and only one Redis Pod. Therefore one or more pods might be in Pending status.
 
 ### clean up
 We don't need any of this anymore, it was just for fun...please be responsible and kill it!
 ```bash
-kubectl delete -f yaml-minimal/counting-service.yaml && kubectl delete -f yaml-minimal/counting-load-balancer.yaml
+kubectl delete -f yaml-minimal/counting-deployment.yaml && kubectl delete -f yaml-minimal/counting-node-port.yaml
 ```
 
 It's time to go back to lecture...
