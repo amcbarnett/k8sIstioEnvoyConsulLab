@@ -60,7 +60,7 @@ sed -e "s/my-key/GOOGLE_CREDENTIALS/" -e "s/my-hcl/false/" -e "s/my-value/${GOOG
 curl --header "Authorization: Bearer ${TFH_token}" --header "Content-Type: application/vnd.api+json" --data @variable.json "https://app.terraform.io/api/v2/vars"
 rm -f variable.json
 
-terraform $operation
+terraform $operation --auto-approve
 
 echo "Sleeping 10 seconds before proceeding"
 
