@@ -6,23 +6,24 @@ then
   exit 1
 fi
 
+[[ -z "$1" ]] && echo "Usage: gke.sh cluster_name [apply|destroy]" && exit 1
+[[ -z "$2" ]] && echo "Usage: gke.sh cluster_name [apply|destroy]" && exit 1
+
 echo "Listing available clusters"
 gcloud container clusters list
 
-echo "Enter a cluster name for your GKE cluster. A new name if creating a new cluster, or existing name if destroying."
-read cluster_name
+cluster_name=$1
 echo "Using cluster name: $cluster_name"
 export TFH_name="terraform-gke-k8s-$cluster_name"
 
-echo 'Enter "apply" or "destroy" for this cluster (without quotes)'
-read operation
+operation=$2
 echo "Going to perform terraform $operation on workspace $TFH_name"
 
-echo "Enter a GCP region. E.g. us-east4"
-read region
+[[ -z "$region" ]] && region="us-east-4"
+[[ -z "$zone" ]] && zone="us-east4-b"
 
-echo "Enter a zone in $region. E.g. us-east4-b"
-read zone
+echo "Using region: $region"
+echo "Using zone: $zone"
 
 export machine_type="n1-standard-2"
 export node_count=3
@@ -43,11 +44,19 @@ EOF
 terraform init
 workspace_id=$(curl -s --header "Authorization: Bearer ${TFH_token}" --header "Content-Type: application/vnd.api+json" "https://app.terraform.io/api/v2/organizations/${TFH_org}/workspaces/${TFH_name}" | jq -r .data.id)
 
+# Delete existing variables
+curl --header "Authorization: Bearer ${TFH_token}" --header "Content-Type: application/vnd.api+json" "https://app.terraform.io/api/v2/vars?filter%5Borganization%5D%5Bname%5D=${TFH_org}&filter%5Bworkspace%5D%5Bname%5D=${TFH_name}" > vars.json
+x=$(cat vars.json | jq -r ".data[].id" | wc -l | awk '{print $1}')
+for (( i=0; i<$x; i++ ))
+do
+  curl --header "Authorization: Bearer ${TFH_token}" --header "Content-Type: application/vnd.api+json" --request DELETE https://app.terraform.io/api/v2/vars/$(cat vars.json | jq -r ".data[$i].id")
+done
+
 tfh pushvars -var "masterAuthPass=solstice-vault-021219" -var "masterAuthUser=solstice-k8s" -var "serviceAccount=k8s-vault" -var "project=${GOOGLE_PROJECT}" -var "region=$region" -var "zone=$zone" -var "cluster_name=${cluster_name}" -var "node_count=${node_count}" -var "machine_type=${machine_type}" -env-var "CONFIRM_DESTROY=1" -overwrite-all -dry-run false
 
 echo "Setting new GOOGLE_CREDENTIALS from $GOOGLE_CREDENTIALS_PATH"
 export GOOGLE_CREDENTIALS=$(tr '\n' ' ' < $GOOGLE_CREDENTIALS_PATH | sed -e 's/\"/\\\\"/g' -e 's/\//\\\//g' -e 's/\\n/\\\\\\\\n/g')
-sed -e "s/my-key/GOOGLE_CREDENTIALS/" -e "s/my-hcl/false/" -e "s/my-value/${GOOGLE_CREDENTIALS}/" -e "s/my-category/env/" -e "s/my-sensitive/true/" -e "s/my-workspace-id/${workspace_id}/" < api_templates/variable.json.template  > variable.json;
+sed -e "s/my-key/GOOGLE_CREDENTIALS/" -e "s/my-hcl/false/" -e "s/my-value/${GOOGLE_CREDENTIALS}/" -e "s/my-category/env/" -e "s/my-sensitive/true/" -e "s/my-workspace-id/${workspace_id}/" < ./tfe.variable.json.template  > variable.json;
 curl --header "Authorization: Bearer ${TFH_token}" --header "Content-Type: application/vnd.api+json" --data @variable.json "https://app.terraform.io/api/v2/vars"
 rm -f variable.json
 
